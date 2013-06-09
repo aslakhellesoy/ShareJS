@@ -33,7 +33,10 @@ module.exports = MongoDb = (options) ->
   client = options.client or new mongodb.Db(options.db, new mongodb.Server(options.hostname, options.port, options.mongoOptions), {safe: true})
   
   client.open (err, db) ->
-    if not err
+    if err
+      console.error err
+      throw err
+    else
       client = db
       if options.user and options.password
         client.authenticate(options.user, options.password)
