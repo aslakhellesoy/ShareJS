@@ -30,13 +30,19 @@ module.exports = MongoDb = (options) ->
   options ?= {}
   options[k] ?= v for k, v of defaultOptions
 
-  client = options.client or new mongodb.Db(options.db, new mongodb.Server(options.hostname, options.port, options.mongoOptions), {safe: true})
-  
-  client.open (err, db) ->
-    if not err
-      client = db
-      if options.user and options.password
-        client.authenticate(options.user, options.password)
+  if(options.client)
+    # If a client is passed in, don't try to connect (assume it's already connected)
+    client = options.client
+  else
+    client = new mongodb.Db(options.db, new mongodb.Server(options.hostname, options.port, options.mongoOptions), {safe: true})
+
+    client.open (err, db) ->
+      if err
+        console.error(err)
+      if not err
+        client = db
+        if options.user and options.password
+          client.authenticate(options.user, options.password)
   
   # Checking if an index needs creating is cheap, so do it on every connect
   if not options.opsCollectionPerDoc
