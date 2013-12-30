@@ -1,4 +1,3 @@
-var Duplex = require('stream').Duplex;
 var format = require('util').format;
 var http = require('http');
 var connect = require('connect');
@@ -20,25 +19,29 @@ var backend = livedb.client(livedbMongo('localhost:27017/test?auto_reconnect', {
 var share = sharejs.server.createClient({backend:backend});
 
 primus.on('connection', function (spark) {
+  share.listen(sparkStream(spark));
+});
+
+function sparkStream(spark) {
+  var Duplex = require('stream').Duplex;
+
   var stream = new Duplex({objectMode: true});
+
   stream._write = function (chunk, encoding, callback) {
     console.log('s->c', chunk);
-    // TODO: silently drop messages if spark is disconnected?
     spark.write(chunk);
     callback();
   };
 
-  // See http://nodejs.org/api/stream.html#stream_readable_read_size_1
-  // Especially how we interact with push.
   stream._read = function() {};
+
+  stream.on('error', function (msg) {
+    client.stop();
+  });
 
   spark.on('data', function (data) {
     console.log('c->s', data);
     stream.push(data);
-  });
-
-  stream.on('error', function (msg) {
-    client.stop();
   });
 
   spark.on('close', function () {
@@ -47,9 +50,8 @@ primus.on('connection', function (spark) {
     stream.end()
   });
 
-  // ... and give the stream to ShareJS.
-  share.listen(stream);
-});
+  return stream;
+};
 
 var port = argv.p || 7007;
 server.listen(port);
